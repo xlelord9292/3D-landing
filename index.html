@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Relational — Landing</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+ 
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#000;color:#fff;overflow-x:hidden}
+ 
+    canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+
+    header{position:relative;z-index:1;display:grid;place-items:center;height:100vh}
+    h1{font-size:clamp(3rem,8vw,10rem);font-weight:900;text-transform:uppercase;letter-spacing:.1em;transform:translateZ(0);will-change:transform,opacity}
+    p{margin-top:1rem;font-size:clamp(1rem,3vw,1.5rem);opacity:.7}
+
+    .scroll-hint{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);font-size:.875rem;letter-spacing:.1em;animation:bounce 2s infinite}
+    @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
+
+    section{position:relative;z-index:1;padding:10vh 5vw;min-height:100vh;display:grid;place-items:center}
+    .card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);padding:3rem 4rem;border-radius:1rem;max-width:40ch;backdrop-filter:blur(10px);transform:translateY(50px);opacity:0;transition:transform 1s cubic-bezier(.4,0,.2,1),opacity 1s}
+    .card.visible{transform:translateY(0);opacity:1}
+    h2{font-size:1.75rem;margin-bottom:.75rem}
+
+    @media (prefers-reduced-motion:reduce){
+      h1,.card{transition:none;animation:none}
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="bg"></canvas>
+
+  <header>
+    <div>
+      <h1 id="heroTitle">Relational</h1>
+      <p>3D landing page</p>
+    </div>
+  </header>
+
+  <section><div class="card"><h2>Scroll Down</h2><p>WebGL-powered particles react to scroll and cursor.</p></div></section>
+  <section><div class="card"><h2>Performance</h2><p>Optimized to 60 fps on mid-range laptops.</p></div></section>
+  <section><div class="card"><h2>Enjoy</h2><p>Built with ❤️ by Relational Throne.</p></div></section>
+
+  <div class="scroll-hint">scroll ↓</div>
+
+<script type="module">
+
+const canvas = document.getElementById('bg');
+const renderer = new (class Renderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    if (!this.gl) throw new Error('WebGL not supported');
+    this.gl.disable(this.gl.DEPTH_TEST);
+    this.gl.enable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+  }
+  resize() {
+    const {clientWidth, clientHeight} = this.canvas;
+    this.canvas.width = clientWidth;
+    this.canvas.height = clientHeight;
+    this.gl.viewport(0, 0, clientWidth, clientHeight);
+  }
+  frame(fn) {
+    requestAnimationFrame(() => {
+      fn(this.gl, this.canvas);
+      this.frame(fn);
+    });
+  }
+})(canvas);
+
+const gl = renderer.gl;
+
+
+const vs = `#version 300 es
+in vec2 pos;
+uniform mat3 uMatrix;
+void main() {
+  vec3 p = uMatrix * vec3(pos, 1.0);
+  gl_Position = vec4(p.xy, 0.0, 1.0);
+}`;
+const fs = `#version 300 es
+precision mediump float;
+out vec4 outColor;
+uniform float uOpacity;
+void main() {
+  outColor = vec4(1.0, 1.0, 1.0, uOpacity);
+}`;
+
+const program = createProgram(gl, vs, fs);
+const loc = {
+  pos: gl.getAttribLocation(program, 'pos'),
+  matrix: gl.getUniformLocation(program, 'uMatrix'),
+  opacity: gl.getUniformLocation(program, 'uOpacity'),
+};
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.01, -0.01, 0.01, -0.01, 0, 0.01]), gl.STATIC_DRAW);
+
+gl.enableVertexAttribArray(loc.pos);
+gl.vertexAttribPointer(loc.pos, 2, gl.FLOAT, false, 0, 0);
+
+
+const COUNT = 300;
+const positions = new Float32Array(COUNT * 2);
+const velocities = new Float32Array(COUNT * 2);
+const phases = new Float32Array(COUNT);
+for (let i = 0; i < COUNT; i++) {
+  velocities[i * 2] = (Math.random() - 0.5) * 0.002;
+  velocities[i * 2 + 1] = (Math.random() - 0.5) * 0.002;
+  phases[i] = Math.random() * Math.PI * 2;
+}
+
+
+let scroll = 0;
+let mouse = [0, 0];
+window.addEventListener('scroll', () => (scroll = window.scrollY));
+window.addEventListener('mousemove', (e) => {
+  mouse[0] = (e.clientX / innerWidth - 0.5) * 2;
+  mouse[1] = -(e.clientY / innerHeight - 0.5) * 2;
+});
+
+
+renderer.frame((gl, canvas) => {
+  const now = performance.now() * 0.001;
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(program);
+
+  const w = canvas.width, h = canvas.height;
+  const matrix = new Float32Array([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1
+  ]);
+
+  for (let i = 0; i < COUNT; i++) {
+    const idx = i * 2;
+    const x = positions[idx] + velocities[idx] * 10 * (1 + scroll * 0.0001);
+    const y = positions[idx + 1] + velocities[idx + 1] * 10 + Math.sin(now + phases[i]) * 0.001;
+    positions[idx] = x + mouse[0] * 0.02;
+    positions[idx + 1] = y + mouse[1] * 0.02;
+
+    const px = (positions[idx] * w) / h;
+    const py = positions[idx + 1];
+
+    matrix[6] = px;
+    matrix[7] = py;
+    gl.uniformMatrix3fv(loc.matrix, false, matrix);
+    gl.uniform1f(loc.opacity, 0.8 - Math.abs(Math.sin(now * 0.5 + i * 0.3)) * 0.5);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+});
+
+
+const cards = document.querySelectorAll('.card');
+const io = new IntersectionObserver((entries) =>
+  entries.forEach(e => e.target.classList.toggle('visible', e.isIntersecting)),
+  { threshold: 0.2 }
+);
+cards.forEach(c => io.observe(c));
+
+
+function createShader(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
+  return s;
+}
+function createProgram(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, createShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, createShader(gl, gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+</script>
+</body>
+</html>
