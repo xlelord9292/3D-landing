@@ -13,12 +13,12 @@ Dive into a 3D environment website and watch the demo video right here.
 
 ## Live Preview
 
-[![Preview](preview.png)]([https://www.tiktok.com/@relational_throne/video/7544421326967098655](https://www.tiktok.com/@relational_throne/video/7544428550003150111))
+[![Preview](preview.png)](https://www.tiktok.com/@relational_throne/video/7544428550003150111)
 
 ---
 
 ## TikTok Demo Link
 
-▶️ [Watch on TikTok]([https://www.tiktok.com/@relational_throne/video/7544421326967098655](https://www.tiktok.com/@relational_throne/video/7544428550003150111))
+▶️ [Watch on TikTok](https://www.tiktok.com/@relational_throne/video/7544428550003150111)
 
 ---
